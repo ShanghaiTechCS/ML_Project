@@ -5,7 +5,7 @@
 
 
 def main():
-    pass
+    print(123)
 
 
 if __name__ == '__main__':
