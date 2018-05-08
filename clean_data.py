@@ -97,11 +97,14 @@ def clean_train_customer(src_data_path, dest_data_path):
     title_list = data_list[0]
     target_attr_list = title_list[-3:-1]
     feature_attr_list = title_list[:-3]
+    feature_attr_list.remove(feature_attr_list[-2])
 
-    print(title_list)
+    print('feature_attr_list:', feature_attr_list)
+    print('target_attr_list:', target_attr_list)
 
     data_array = np.array(data_list[1:])  # (N, F+2)
     feature_array = data_array[:, :-3]  # str [N, F]
+    feature_array = np.delete(feature_array, -2, axis=1) #
     target_array = data_array[:, -3:-1]  # str [N, 2]
 
     print('feature_array shape:', feature_array.shape)
@@ -124,16 +127,21 @@ def clean_train_customer(src_data_path, dest_data_path):
     profit_target = format_attr(target_array[:, 1:2], target_attr_list[1], fill_none='zero', normalization=False)
 
     responded_idx = np.argwhere(responded_target)[:, 0]
-    profit_target = profit_target[responded_idx]
+    only_profit_target = profit_target[responded_idx]
+    wished_target = ((responded_target == 1) * (profit_target > 30)).astype(np.float32)
 
     data_package = {'feature_standard_weight_list': feature_standard_weight_list,
                     'responded_input': formatted_feature_array,
                     'responded_target': responded_target,
+                    'wished_target': wished_target,
                     'profit_input': formatted_feature_array[responded_idx],
-                    'profit_target': profit_target}
+                    'profit_target': only_profit_target}
 
     for k, v in data_package.items():
-        print('%s: %s' % (k, v.shape))
+        if isinstance(v, list):
+            print('%s: %s' % (k, len(v)))
+        else:
+            print('%s: %s' % (k, v.shape))
 
     with open(dest_data_path, 'wb') as f:
         pickle.dump(data_package, f)
