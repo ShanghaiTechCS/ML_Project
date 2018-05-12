@@ -214,7 +214,8 @@ def clean_train_customer(src_data_path, dest_data_path, fill_none='zero'):
 
 
 def main():
-    clean_train_customer(src_data_path='data/DataTraining.csv', dest_data_path='data/zero/train.data', fill_none='average')
+    fill_none = 'sample'
+    clean_train_customer(src_data_path='data/DataTraining.csv', dest_data_path='data/%s/train.data' % fill_none, fill_none=fill_none)
     # create_train_val_list('data/train_val_list.json')
 
     pass
