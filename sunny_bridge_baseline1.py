@@ -70,7 +70,7 @@ def baseline1(data_dict=None):
     And the groundtruth is the (responded_target \cap (profit_target>30))
 
     logistic regression
-    data_dict:
+    data_dict: the data format 
 
     """
 
