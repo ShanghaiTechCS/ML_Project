@@ -7,10 +7,13 @@
 ```
 feature_array shape: (8137, 20)
 target_array shape: (8137, 2)
-data_package = {'feature_standard_weight_list': [(mean, std), ...] length=58,
-                'responded_input': (8137, 58),
-                'responded_target': (8137, 1),
-                'wished_target': (8137, 1),
-                'profit_input': (827, 58),
-                'profit_target': (827, 1)}
+```
+
+data_package:
+```
+feature_standard_weight_list: 55
+train_input: (7323, 55)
+train_target: (7323, 2)
+val_input: (814, 55)
+val_target: (814, 2)
 ```
