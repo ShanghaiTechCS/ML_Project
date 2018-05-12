@@ -70,7 +70,7 @@ def baseline1(data_dict=None):
     And the groundtruth is the (responded_target \cap (profit_target>30))
 
     logistic regression
-    data_dict: the data format 
+    data_dict: the data format
 
     """
 
@@ -101,7 +101,6 @@ def baseline1(data_dict=None):
     plt.xlabel('regularization strength')
     plt.ylabel('accuracy')
     plt.legend(['training', 'validation'])
-    # plt.show()
     plt.savefig('./figure/baseline1_logR.png')
 
 
@@ -109,9 +108,7 @@ def baseline2(data_dict):
     """
     This baseline can estimate the customer whether responded.
     And the groundtruth is the (responded_target \cap (profit_target>30))
-
     svm
-
     """
 
     training_data = data_dict['training_data']
@@ -122,10 +119,8 @@ def baseline2(data_dict):
     score_val_list = []
 
     for c in np.linspace(1, 100, 100):
-        # svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='linear')
-        # svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
-        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='sigmoid')
-        # svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='rbf')
+
+        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
         svm.fit(training_data, training_gt)
         score_train = svm.score(training_data, training_gt)
         score_val = svm.score(val_data, val_gt)
@@ -143,7 +138,7 @@ def baseline2(data_dict):
     plt.ylabel('accuracy')
     plt.legend(['training', 'validation'])
     # plt.show()
-    plt.savefig('./figure/baseline2_svm_sigmoid.png')
+    plt.savefig('./figure/baseline2_svm_poly.png')
 
 
 def plot_figure():
