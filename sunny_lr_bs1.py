@@ -5,10 +5,12 @@
 
 import numpy as np
 import pickle
+import random
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch.utils import data
 import torchvision
 import torchvision.transforms as transforms
 
@@ -134,9 +136,9 @@ def compute_result(model, criterion, input_data, target_data, recommend_data, pr
         return loss, profit, total_precision, recommend_recall
 
 
-class MLR(nn.Module):
+class MLR4(nn.Module):
     def __init__(self, feature_num):
-        super(MLR, self).__init__()
+        super(MLR4, self).__init__()
         self.feature_num = feature_num
 
         self.fc1 = nn.Linear(feature_num, 64)
@@ -145,38 +147,103 @@ class MLR(nn.Module):
         self.fc4 = nn.Linear(16, 1)
 
     def forward(self, x):
-        x1 = F.relu(self.fc1(x))
-        x2 = F.relu(self.fc2(x1))
-        x3 = F.relu(self.fc3(x2))
-        x4 = self.fc4(x3)
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
 
-        return x4
+        return x
 
 
-def logistic_regression(data_type):
+class MLR2(nn.Module):
+    def __init__(self, feature_num):
+        super(MLR2, self).__init__()
+        self.feature_num = feature_num
+
+        self.fc1 = nn.Linear(feature_num, 64)
+        self.fc2 = nn.Linear(64, 1)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+
+        return x
+
+
+class LR(nn.Module):
+    def __init__(self, feature_num):
+        super(LR, self).__init__()
+        self.feature_num = feature_num
+
+        self.fc1 = nn.Linear(feature_num, 1)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        return x
+
+
+def logistic_regression(data_type, balance_data=False, model_name='MLR4'):
+    """
+    :param data_type: 'zero', 'average', 'sample'
+    :param balance_data: bool
+    :param model_name: 'MLR4', 'MLR2', 'LR'
+    :return:
+    """
     # load data
     train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('data/%s/train.data' % data_type, use_tensor=True,
                                                                                                  use_cuda=True)
-    feature_num = train_input.size(1)
+    total_train_num, feature_num = train_input.size()
 
-    model = MLR(feature_num).cuda()
+    if model_name == 'MLR4':
+        model = MLR4(feature_num).cuda()
+    elif model_name == 'MLR2':
+        model = MLR2(feature_num).cuda()
+    elif model_name == 'LR':
+        model = LR(feature_num).cuda()
+    else:
+        raise Exception('error model name!!!')
 
     criterion = class_balanced_cross_entropy_loss
     # optimizer = torch.optim.SGD(model.parameters(), lr=2e-2, weight_decay=1e-2)
-    optimizer = torch.optim.Adam(model.parameters(), lr=2e-3, weight_decay=2e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3, weight_decay=2e-3)
 
     # Train the model
-    num_epochs = 3000
+    num_epochs = 10000
     train_input, train_recommend = train_input.requires_grad_(), train_recommend.requires_grad_()
-    for epoch in range(1, num_epochs + 1):
-        train_pred_recommend = model(train_input)
-        loss = criterion(train_pred_recommend, train_recommend)
-        if epoch % 100 == 0:
-            print('[%d/%d]: loss: %.9f' % (epoch, num_epochs, loss.item()))
 
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+    if balance_data:
+        batch_num = int(train_recommend.sum().item())
+        pos_idx_list = np.argwhere(train_recommend.detach().cpu().numpy()[:, 0] == 1).reshape(-1).tolist()
+        neg_idx_list = list(set(list(range(total_train_num))) - set(pos_idx_list))
+
+        # Start Train
+        for epoch in range(1, num_epochs + 1):
+            neg_random_idx = random.sample(neg_idx_list, batch_num)
+            train_idx = pos_idx_list + neg_random_idx
+
+            batch_train_input = train_input[train_idx, :]
+            batch_train_recommend = train_recommend[train_idx, :]
+
+            batch_train_pred_recommend = model(batch_train_input)
+            loss = criterion(batch_train_pred_recommend, batch_train_recommend)
+            if epoch % 100 == 0:
+                print('[%d/%d]: loss: %.9f' % (epoch, num_epochs, loss.item()))
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+    else:
+        # Start Train
+        for epoch in range(1, num_epochs + 1):
+
+            train_pred_recommend = model(train_input)
+            loss = criterion(train_pred_recommend, train_recommend)
+            if epoch % 100 == 0:
+                print('[%d/%d]: loss: %.9f' % (epoch, num_epochs, loss.item()))
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
     print('Train:')
     compute_result(model, criterion, train_input, train_target, train_recommend)
@@ -185,7 +252,7 @@ def logistic_regression(data_type):
 
 
 def main():
-    logistic_regression(data_type='sample')
+    logistic_regression(data_type='sample', balance_data=False, model_name='MLR4')
 
 
 if __name__ == '__main__':

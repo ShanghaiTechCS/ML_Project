@@ -37,3 +37,11 @@ RR: recommend_recall
 |    1     |   zero    | base DT | TP:0.95 RR:0.57 Profit:62244 | TP:0.89 RR:0.36 Profit:4473 |
 |    1     |  average  | base DT | TP:0.95 RR:0.59 Profit:64868 | TP:0.90 RR:0.33 Profit:4408 |
 |    1     |  sample   | base DT | TP:0.94 RR:0.45 Profit:49059 | TP:0.90 RR:0.34 Profit:4839 |
+
+## LR and MLR Result
+| Baseline | data mode |            setup            |         train_result         |         val_result          |
+| :------: | :-------: | :-------------------------: | :--------------------------: | :-------------------------: |
+|    1     |  sample   |  LR, L2 norm, balance loss  | TP:0.80 RR:0.74 Profit:47226 | TP:0.78 RR:0.71 Profit:5826 |
+|    1     |  sample   |  LR, L2 norm, balance data  | TP:0.81 RR:0.72 Profit:47936 | TP:0.79 RR:0.68 Profit:5945 |
+|    1     |  sample   | MLR2, L2 norm, balance loss | TP:0.81 RR:0.72 Profit:48880 | TP:0.79 RR:0.69 Profit:5946 |
+|    1     |  sample   | MLR4, L2 norm, balance loss | TP:0.92 RR:0.99 Profit:96072 | TP:0.84 RR:0.47 Profit:4542 |
