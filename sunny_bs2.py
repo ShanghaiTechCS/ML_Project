@@ -1,9 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import Ridge, Lasso
-from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPRegressor, MLPClassifier
 from sklearn.svm import SVC
 import random
+from utils import recall_cls
 import os.path as osp
 from utils import pure_profit, plot_figure, classification_fusion
 
@@ -88,7 +89,7 @@ def reg_profit(data_dict=None):
         # regression_pro = Lasso(alpha=c, max_iter=10000000, tol=1e-8)
         regression_pro = MLPRegressor(hidden_layer_sizes=(64, 128, 64), activation='relu', solver='adam', alpha=0.00001,
                                       batch_size='auto', learning_rate='adaptive', max_iter=1000000, shuffle=True,
-                                  tol=1e-48, momentum=0.99, verbose=True, warm_start=True)
+                                      tol=1e-48, momentum=0.99, verbose=True, warm_start=True)
         regression_pro.fit(training_data, training_gt)
         score_train = regression_pro.predict(training_data)
         mse_train = np.mean((score_train - training_gt) ** 2)
@@ -143,8 +144,43 @@ def cls_response(data_dict):
                 save_path='./figure/profit_average_bs2_svm.png')
 
 
-def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
+def cls_response_mlp(data_dict):
+    """
+    This baseline can estimate the customer whether responded.
+    And the ground-truth is the (responded_target \cap (profit_target>30))
+    svm
+    """
 
+    training_data = data_dict['training_data']
+    training_gt = data_dict['training_gt']
+    val_data = data_dict['val_data']
+    val_gt = data_dict['val_gt']
+    test_data = data_dict['test_data']
+    test_gt = data_dict['test_gt']
+
+
+    print('train_max_profit:', np.maximum(training_gt[:, 1] - 30, 0).sum())
+    print('val_max_profit:', np.maximum(val_gt[:, 1] - 30, 0).sum())
+
+    mlpcls = MLPClassifier(hidden_layer_sizes=(128, 64), activation='relu', solver='adam', alpha=0.001,
+                           batch_size='auto', verbose=True, learning_rate='adaptive', warm_start=True, momentum=0.99,
+                           max_iter=10000, shuffle=True, learning_rate_init=0.001, tol=1e-8)
+    mlpcls.fit(training_data, training_gt[:, 0])
+
+    cls_pred_train = mlpcls.predict(training_data)
+    cls_pred_val = mlpcls.predict(val_data)
+
+    total_acc_train, rec_acc_train = recall_cls(cls_pred_train, training_gt[:, 0])
+    profit_train = pure_profit(cls_pred_train, profit_gt=training_gt[:, 1], cls_gt=None)
+    total_acc_val, rec_acc_val = recall_cls(cls_pred_val, val_gt[:, 0])
+    profit_val = pure_profit(cls_pred_val, profit_gt=val_gt[:, 1], cls_gt=None)
+
+    print('total_acc_train: %.3f, rec_acc_train:%.3f, total_acc_val:%.3f, rec_acc_val:%.3f, Profit_train: %.3f, '
+          'Profit_val:%.3f'
+          % (total_acc_train, rec_acc_train, total_acc_val,  rec_acc_val, profit_train, profit_val))
+
+
+def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
     training_data = data_dict['training_data']
     training_gt = data_dict['training_gt'][:, 1]
     training_data_profit = training_data[np.where((training_gt != 0))[0]]
@@ -179,7 +215,7 @@ def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
     print('best_cls_alpha:', best_cls_alpha, 'best_reg_alpha:', best_reg_alpha)
 
     acc = svm.score(val_data, val_gt_cls)
-    mse = np.mean((reg.predict(val_data_profit) - val_gt_profit)**2)
+    mse = np.mean((reg.predict(val_data_profit) - val_gt_profit) ** 2)
     import pdb
     pdb.set_trace()
 
@@ -189,7 +225,6 @@ def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
     profit_val = []
 
     for thres_high in range(30, 200, 5):
-
         cls_result_fusion_train = classification_fusion(cls_pred=cls_result_train, reg_pred=reg_result_train,
                                                         thres_high=thres_high, thres_low=-1000)
         reg_profit_train = pure_profit(cls_pred=cls_result_fusion_train, cls_gt=None, profit_gt=training_gt)
@@ -210,8 +245,10 @@ def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
 
 def main():
     data_dict = dataloder(path='./data', split_ratio=0.8, mode='sample')
-    reg_profit(data_dict=data_dict)
+    # reg_profit(data_dict=data_dict)
     # baseline2(best_cls_alpha=0.364, best_reg_alpha=1.8, data_dict=data_dict)
+    cls_response_mlp(data_dict=data_dict)
+
 
 if __name__ == '__main__':
     np.random.seed(19)
