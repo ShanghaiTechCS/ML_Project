@@ -37,7 +37,7 @@ attr_type_dict = {
 }
 
 
-def format_attr(attr_array, name, fill_none='zero', normalization=True):
+def format_attr(attr_array, name, fill_none, normalization=True):
     """
     :param attr: attr_array [N, 1]
     :param name: attr name
