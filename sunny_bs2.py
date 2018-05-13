@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import Ridge
 from sklearn.svm import SVC
 import random
 import os.path as osp
@@ -23,7 +23,7 @@ def dataloder(path=None, split_ratio=0.8, mode=None):
     train_input = data['train_input']
     train_target = data['train_target']
 
-
+    # change the mode to synthesis classification
     # one_index = np.array(train_target[:,1] > 30, dtype=np.int16)
     # train_target[:, 0] = (train_target[:, 0] * one_index)
 
@@ -56,52 +56,50 @@ def dataloder(path=None, split_ratio=0.8, mode=None):
     return data_dict
 
 
-def baseline1(data_dict=None):
+def reg_profit(data_dict=None):
     """
     This baseline can estimate the customer whether responded.
-    And the groundtruth is the (responded_target \cap (profit_target>30))
+    And the ground-truth is the (responded_target \cap (profit_target>30))
+
     logistic regression
-    data_dict: the data format
+    data_dict:
+
     """
 
     training_data = data_dict['training_data']
-    training_gt = data_dict['training_gt']
+    training_gt = data_dict['training_gt'][:, 1]
+    training_data = training_data[np.where((training_gt!=0))[0]]
+    training_gt = training_gt[np.where((training_gt!=0))[0]]
+
     val_data = data_dict['val_data']
-    val_gt = data_dict['val_gt']
+    val_gt = data_dict['val_gt'][:, 1]
+    val_data = val_data[np.where((val_gt != 0))[0]]
+    val_gt = val_gt[np.where((val_gt != 0))[0]]
+
     test_data = data_dict['test_data']
-    test_gt = data_dict['test_gt']
+    test_gt =  data_dict['test_gt'][:, 1]
 
     score_train_list = []
-    profit_train_list = []
     score_val_list = []
-    profit_val_list = []
 
-    for c in np.linspace(1e-5, 100, 1000):
-        logit_reg = LogisticRegression(verbose=False, class_weight='balanced', max_iter=10000, penalty='l2',
-                                       tol=0.0000001,
-                                       warm_start=True, n_jobs=5)
-        logit_reg.fit(training_data, training_gt[:, 0])
-        score_train = logit_reg.score(training_data, training_gt[:, 0])
-        profit_train = pure_profit(logit_reg.predict(training_data), profit_gt=training_gt[:, 1], cls_gt=None)
-        score_val = logit_reg.score(val_data, val_gt[:, 0])
-        profit_val = pure_profit(logit_reg.predict(training_data), profit_gt=training_gt[:, 1], cls_gt=None)
-
+    for c in np.linspace(1e-6, 10, 10000):
+        regression_pro = Ridge(alpha=c, max_iter=10000000, tol=1e-8)
+        regression_pro.fit(training_data, training_gt)
+        score_train = regression_pro .score(training_data, training_gt)
+        score_val = regression_pro .score(val_data, val_gt)
 
         score_train_list.append(score_train)
-        profit_train_list.append(profit_train)
         score_val_list.append(score_val)
-        profit_val_list.append(profit_val)
-        print('C=%.3f' % c, 'Score_train: %.3f, Score_val:%.3f, Profit_train: %.3f, Profit_val:%.3f'
-              %(score_train, score_val, profit_train, profit_val))
+        print('C=%.3f' % c, 'The train MSE: ', score_train)
+        print('C=%.3f' % c, 'The val MSE: ', score_val)
+
+    plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-6, stop=10, num_point=10000,
+                xlabels='regularization', ylabels='mse', legends=['train', 'val'],
+                save_path='./figure/profit_sample_bs2_ridge_mse.png')
 
 
-    plot_figure(train_data=score_train_list, val_data=score_train_list, start=1e-5, stop=100, num_point=1000,
-                xlabels='regularization',ylabels='loss', legends=['train', 'val'], save_path='./figure/acc_bs1_lg.png')
-    plot_figure(train_data=profit_train_list, val_data=profit_train_list, start=1e-5, stop=100, num_point=1000,
-                xlabels='regularization', ylabels='profit', legends=['train', 'val'], save_path='./figure/profit_bs1_lg.png')
 
-
-def baseline2(data_dict):
+def cls_responsed(data_dict):
     """
     This baseline can estimate the customer whether responded.
     And the groundtruth is the (responded_target \cap (profit_target>30))
@@ -130,26 +128,18 @@ def baseline2(data_dict):
         score_val = svm.score(val_data, val_gt[:, 0])
         profit_val = pure_profit(svm.predict(val_data), profit_gt=val_gt[:, 1], cls_gt=None)
 
-        score_train_list.append(score_train)
-        profit_train_list.append(profit_train)
-        score_val_list.append(score_val)
-        profit_val_list.append(profit_val)
-
         print('C=%.3f' % c, 'Score_train: %.3f, Score_val:%.3f, Profit_train: %.3f, Profit_val:%.3f'
               % (score_train, score_val, profit_train, profit_val))
-
     plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-5, stop=1, num_point=100,
-                xlabels='regularization', ylabels='loss', legends=['train', 'val'], save_path='./figure/acc_average_bs1_svm1.png')
+                xlabels='regularization', ylabels='loss', legends=['train', 'val'], save_path='./figure/acc_average_bs2_svm.png')
     plot_figure(train_data=profit_train_list, val_data=profit_val_list, start=1e-5, stop=1, num_point=100,
                 xlabels='regularization', ylabels='profit', legends=['train', 'val'],
-                save_path='./figure/profit_average_bs1_svm1.png')
+                save_path='./figure/profit_average_bs2_svm.png')
 
 
 def main():
-    data_dict = dataloder(path='./data', split_ratio=0.8, mode='average')
-    # baseline1(data_dict=data_dict)
-    baseline2(data_dict=data_dict)
-
+    data_dict = dataloder(path='./data', split_ratio=0.8, mode='sample')
+    reg_profit(data_dict=data_dict)
 
 
 if __name__ == '__main__':
