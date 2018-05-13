@@ -36,6 +36,9 @@ attr_type_dict = {
     'profit': 'int'
 }
 
+customer_attr_name_list = ['custAge', 'profession', 'marital', 'schooling', 'housing', 'loan', 'emp.var.rate', 'cons.price.idx', 'cons.conf.idx', 'euribor3m',
+                           'nr.employed']
+
 
 def format_attr(attr_array, name, fill_none, normalization=True):
     """
@@ -79,7 +82,8 @@ def format_attr(attr_array, name, fill_none, normalization=True):
         if fill_none == 'zero':
             filled_attr = ''
         elif fill_none == 'average':
-            unique_value, unique_count = np.unique(attr_array, return_counts=True)
+            attr_array_without_NA = np.delete(attr_array, np.argwhere(attr_array == 'NA'))
+            unique_value, unique_count = np.unique(attr_array_without_NA, return_counts=True)
             max_idx = unique_count.argmax()
             filled_attr = unique_value[max_idx]
         else:
@@ -163,13 +167,22 @@ def load_and_clean_input_target_data(src_data_path, fill_none):
 
     # formatted feature array
     formatted_feature_array = []
+    customer_feature_array = []
+    customer_feature_standard_weight_list = []
     feature_standard_weight_list = []
     for i in range(feature_num):
         formatted_attr_array, standard_weight_list = format_attr(feature_array[:, i:i + 1], feature_attr_list[i],
                                                                  fill_none=fill_none, normalization=True)  # (N, C)
+
+        print(formatted_attr_array.shape)
+        if feature_attr_list[i] in customer_attr_name_list:
+            customer_feature_array.append(formatted_attr_array)
+            customer_feature_standard_weight_list += standard_weight_list
+
         formatted_feature_array.append(formatted_attr_array)
         feature_standard_weight_list += standard_weight_list
     formatted_feature_array = np.concatenate(formatted_feature_array, axis=1)  # (N, FF)
+    customer_feature_array = np.concatenate(customer_feature_array, axis=1)  # (N, CustF)
 
     # formatted target array (just change str to float)
     responded_target = format_attr(target_array[:, 0:1], target_attr_list[0], fill_none='zero', normalization=False)
@@ -177,14 +190,16 @@ def load_and_clean_input_target_data(src_data_path, fill_none):
 
     # denote
     input_data = formatted_feature_array  # (N, C)
+    cust_data = customer_feature_array  # (N, Cust)
     target_data = np.concatenate((responded_target, profit_target), axis=1)  # (N, 2)
 
-    return feature_standard_weight_list, input_data, target_data
+    return feature_standard_weight_list, input_data, target_data, cust_data, customer_feature_standard_weight_list
 
 
 def clean_train_customer(src_data_path, dest_data_path, fill_none='zero'):
     # load and clean data
-    feature_standard_weight_list, input_data, target_data = load_and_clean_input_target_data(src_data_path, fill_none)
+    feature_standard_weight_list, input_data, target_data, cust_data, customer_feature_standard_weight_list = load_and_clean_input_target_data(
+        src_data_path, fill_none)
 
     # divide in train set and val set
     with open('data/train_val_list.json', 'r') as f:
@@ -192,15 +207,22 @@ def clean_train_customer(src_data_path, dest_data_path, fill_none='zero'):
         train_idx_list, val_idx_list = train_val_idx['train_idx_list'], train_val_idx['val_idx_list']
 
     train_input = input_data[train_idx_list, :]
+    train_cust = cust_data[train_idx_list, :]
     train_target = target_data[train_idx_list, :]
 
     val_input = input_data[val_idx_list, :]
+    val_cust = cust_data[val_idx_list, :]
     val_target = target_data[val_idx_list, :]
 
     data_package = {'feature_standard_weight_list': feature_standard_weight_list,
+                    'customer_feature_standard_weight_list': customer_feature_standard_weight_list,
+
                     'train_input': train_input,
+                    'train_cust': train_cust,
                     'train_target': train_target,
+
                     'val_input': val_input,
+                    'val_cust': val_cust,
                     'val_target': val_target}
 
     for k, v in data_package.items():

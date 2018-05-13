@@ -11,10 +11,13 @@ target_array shape: (8137, 2)
 
 data_package:
 ```
-feature_standard_weight_list: 55
-train_input: (7323, 55)
+feature_standard_weight_list: 58 or 54
+customer_feature_standard_weight_list: 32 or 29
+train_input: (7323, 58 or 54)
+train_cust: (7323, 32 or 29)
 train_target: (7323, 2)
-val_input: (814, 55)
+val_input: (814, 58 or 54)
+val_cust: (814, 32 or 29)
 val_target: (814, 2)
 ```
 
