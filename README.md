@@ -17,3 +17,12 @@ train_target: (7323, 2)
 val_input: (814, 55)
 val_target: (814, 2)
 ```
+
+## baseline1
+
+experiments | setup | acc_most| profit_most| figure_name
+- | :-: | :-:| -:
+baseline1   | 原始的cls labels, svm | 0.917(c=0.01), 4353 | 0.82, 7731(0.343)| acc_bs1_svm1.png, profit_bs1_svm1.png
+baseline1   | syntheis cls labels, svm | 0.925(c=0.01), 4353 | 0.845, 8103(0.343)| acc_bs1_svm2.png, profit_bs1_svm2.png
+
+
