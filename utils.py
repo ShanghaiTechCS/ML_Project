@@ -51,3 +51,19 @@ def classification_fusion(cls_pred, reg_pred, thres_high, thres_low):
     cls_pred[synthesis_low]  = 0
 
     return cls_pred
+
+
+def recall_cls(cls_pred, cls_gt):
+
+    """
+    To compute th recall
+    :param cls_pred: (N,)
+    :param cls_gt:  (N,)
+    :return:
+    """
+
+    total_recall = np.array(cls_pred == cls_gt, dtype=np.float32).mean()
+    rec_recall = np.array(cls_gt * cls_pred).sum()/len(np.where((cls_gt==1))[0])
+
+    return total_recall, rec_recall
+
