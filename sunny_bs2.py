@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.linear_model import Ridge
+from sklearn.linear_model import Ridge, Lasso
 from sklearn.svm import SVC
 import random
 import os.path as osp
@@ -63,9 +63,7 @@ def reg_profit(data_dict=None):
 
     logistic regression
     data_dict:
-
     """
-
     training_data = data_dict['training_data']
     training_gt = data_dict['training_gt'][:, 1]
     training_data = training_data[np.where((training_gt!=0))[0]]
@@ -82,27 +80,29 @@ def reg_profit(data_dict=None):
     score_train_list = []
     score_val_list = []
 
-    for c in np.linspace(1e-6, 10, 10000):
+    for c in np.linspace(1e-5, 10, 100000):
         regression_pro = Ridge(alpha=c, max_iter=10000000, tol=1e-8)
+        # regression_pro = Lasso(alpha=c, max_iter=10000000, tol=1e-8)
         regression_pro.fit(training_data, training_gt)
-        score_train = regression_pro .score(training_data, training_gt)
-        score_val = regression_pro .score(val_data, val_gt)
+        score_train = regression_pro .predict(training_data)
+        mse_train = np.mean((score_train-training_gt)**2)
+        score_val = regression_pro .predict(val_data)
+        mse_val = np.mean((score_val-val_gt)**2)
 
-        score_train_list.append(score_train)
-        score_val_list.append(score_val)
-        print('C=%.3f' % c, 'The train MSE: ', score_train)
-        print('C=%.3f' % c, 'The val MSE: ', score_val)
 
-    plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-6, stop=10, num_point=10000,
+        score_train_list.append(mse_train)
+        score_val_list.append(mse_val)
+        print('C=%.3f' % c, 'The train MSE: ', mse_train, 'The val MSE: ', mse_val)
+
+    plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-5, stop=10, num_point=100000,
                 xlabels='regularization', ylabels='mse', legends=['train', 'val'],
                 save_path='./figure/profit_sample_bs2_ridge_mse.png')
 
 
-
-def cls_responsed(data_dict):
+def cls_response(data_dict):
     """
     This baseline can estimate the customer whether responded.
-    And the groundtruth is the (responded_target \cap (profit_target>30))
+    And the ground-truth is the (responded_target \cap (profit_target>30))
     svm
     """
 
@@ -135,6 +135,24 @@ def cls_responsed(data_dict):
     plot_figure(train_data=profit_train_list, val_data=profit_val_list, start=1e-5, stop=1, num_point=100,
                 xlabels='regularization', ylabels='profit', legends=['train', 'val'],
                 save_path='./figure/profit_average_bs2_svm.png')
+
+
+def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
+
+
+    training_data = data_dict['training_data']
+    training_gt = data_dict['training_gt'][:, 1]
+    training_data_profit = training_data[np.where((training_gt != 0))[0]]
+    training_gt_profit = training_gt[np.where((training_gt != 0))[0]]
+
+    val_data = data_dict['val_data']
+    val_gt = data_dict['val_gt'][:, 1]
+    val_data_profit = val_data[np.where((val_gt != 0))[0]]
+    val_gt_profit = val_gt[np.where((val_gt != 0))[0]]
+
+    test_data = data_dict['test_data']
+    test_gt = data_dict['test_gt'][:, 1]
+
 
 
 def main():
