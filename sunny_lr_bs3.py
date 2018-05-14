@@ -59,18 +59,23 @@ def load_data(data_path, use_tensor=False, use_cuda=False):
     """
     :param data_path:
     :return: data_package = {
-            feature_standard_weight_list: 55
-            train_input: (7323, 55)
+            feature_standard_weight_list: 54
+            train_input: (7323, 54)
             train_target: (7323, 2)
-            val_input: (814, 55)
+            train_cust: (7323, 29)
+            train_cust: (7323, 29)
+            val_cust: (814, 29)
             val_target: (814, 2)
                     }
     """
     with open(data_path, 'rb') as f:
         data_package = pickle.load(f)
 
-    train_input, train_target = data_package['train_input'], data_package['train_target']
-    val_input, val_target = data_package['val_input'], data_package['val_target']
+    train_input, train_cust, train_target = data_package['train_input'], data_package['train_cust'], data_package['train_target']
+    val_input, val_cust, val_target = data_package['val_input'], data_package['val_cust'], data_package['val_target']
+
+    train_cust = train_cust[:, -5:]
+    val_cust = val_cust[:, -5:]
 
     train_responded, train_profit = train_target[:, 0:1], train_target[:, 1:2]
     train_recommend = (train_responded == 1) * (train_profit > 30)
@@ -81,8 +86,8 @@ def load_data(data_path, use_tensor=False, use_cuda=False):
     train_recommend = train_recommend.reshape(-1, 1)
     val_recommend = val_recommend.reshape(-1, 1)
 
-    ret_var = (train_input, train_responded, train_profit, train_recommend,
-               val_input, val_responded, val_profit, val_recommend)
+    ret_var = (train_input, train_cust, train_responded, train_profit, train_recommend,
+               val_input, val_cust, val_responded, val_profit, val_recommend)
     if use_tensor:
         if use_cuda:
             ret_var = (torch.from_numpy(val.astype(np.float32)).cuda() for val in ret_var)
@@ -144,10 +149,11 @@ class MLR2(nn.Module):
         self.feature_num = feature_num
 
         self.fc1 = nn.Linear(feature_num, 32)
+        self.bn1 = nn.BatchNorm1d(32)
         self.fc2 = nn.Linear(32, 1)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
+        x = self.bn1(F.relu(self.fc1(x)))
         x = self.fc2(x)
 
         return x
@@ -158,25 +164,34 @@ class MLR3(nn.Module):
         super(MLR3, self).__init__()
         self.feature_num = feature_num
 
-        self.fc1 = nn.Linear(feature_num, 32)
-        self.fc2 = nn.Linear(32, 32)
-        # self.fc3 = nn.Linear(32, 32)
+        self.fc1 = nn.Linear(feature_num, 16)
+        self.fc2 = nn.Linear(16, 16)
+        # self.fc3 = nn.Linear(16, 1)
         # self.fc4 = nn.Linear(32, 32)
-        self.fc5 = nn.Linear(32, 1)
+        # self.fc5 = nn.Linear(16, 1)
 
-        self.bn1 = nn.BatchNorm1d(32)
-        self.bn2 = nn.BatchNorm1d(32)
-        self.bn3 = nn.BatchNorm1d(32)
-        self.bn4 = nn.BatchNorm1d(32)
+        self.fc0p = nn.Linear(feature_num, 1)
+        self.fc1p = nn.Linear(16, 1)
+        self.fc2p = nn.Linear(16, 1)
+
+        self.bn1 = nn.BatchNorm1d(16)
+        self.bn2 = nn.BatchNorm1d(16)
+        self.bn3 = nn.BatchNorm1d(16)
+        self.bn4 = nn.BatchNorm1d(16)
 
     def forward(self, x):
         x1 = self.bn1(F.relu(self.fc1(x)))
-        x2 = self.bn2(F.relu(self.fc2(x1))) + x1
+        x2 = self.bn2(F.relu(self.fc2(x1)))
         # x3 = self.bn3(F.relu(self.fc3(x2))) + x2
         # x4 = self.bn4(F.relu(self.fc4(x3))) + x3
 
-        x5 = self.fc5(x2)
-        return x5
+        x0p = self.fc0p(x)
+        x1p = self.fc1p(x1)
+        x2p = self.fc1p(x2)
+
+        x = x0p + x1p + x2p
+
+        return x
 
 
 class LR(nn.Module):
@@ -192,18 +207,18 @@ class LR(nn.Module):
 
 
 class MultiTaskModel(nn.Module):
-    def __init__(self, feature_num, base_model):
+    def __init__(self, total_feature_num, cust_feature_num):
         super(MultiTaskModel, self).__init__()
 
-        self.fc1 = nn.Linear(feature_num, 32)
-        self.fc2 = nn.Linear(32, 32)
+        # self.fc1 = nn.Linear(feature_num, 32)
+        # self.fc2 = nn.Linear(32, 32)
         # self.fc3 = nn.Linear(64, 64)
         # self.fc4 = nn.Linear(64, 32)
 
-        self.responded_model = LR(feature_num)
-        self.profit_model = MLR3(feature_num)
+        self.responded_model = LR(total_feature_num)
+        self.profit_model = MLR3(cust_feature_num)
 
-    def forward(self, x):
+    def forward(self, total_x, cust_x):
         # x = F.relu(self.fc1(x))
         # x = self.fc2(x)
         # x = F.relu(self.fc3(x))
@@ -211,14 +226,14 @@ class MultiTaskModel(nn.Module):
 
         # x = self.fc1(x)
 
-        responded = self.responded_model(x)
-        profit = self.profit_model(x)
+        responded = self.responded_model(total_x)
+        profit = self.profit_model(cust_x)
         return responded, profit
 
 
-def compute_result(model, input_data, responded_data, profit_data, recommend_data, print_details=True):
+def compute_result(model, input_data, cust_data, responded_data, profit_data, recommend_data, print_details=True):
     with torch.no_grad():
-        pred_responded, pred_profit = model(input_data)
+        pred_responded, pred_profit = model(input_data, cust_data)
         loss, responded_loss, profit_loss, final_profit_loss = multi_task_loss(pred_responded, pred_profit, responded_data, profit_data)
         loss, responded_loss, profit_loss, final_profit_loss = loss.item(), responded_loss.item(), profit_loss.item(), final_profit_loss.item()
 
@@ -276,9 +291,10 @@ def logistic_regression(data_type, model_name):
     :return:
     """
     # load data
-    train_input, train_responded, train_profit, train_recommend, val_input, val_responded, val_profit, val_recommend = \
+    train_input, train_cust, train_responded, train_profit, train_recommend, val_input, val_cust, val_responded, val_profit, val_recommend = \
         load_data('data/%s/train.data' % data_type, use_tensor=True, use_cuda=True)
-    total_train_num, feature_num = train_input.size()
+    total_train_num, total_feature_num = train_input.size()
+    cust_feature_num = train_cust.size(1)
 
     if model_name == 'MLR4':
         base_model = MLR4
@@ -289,16 +305,16 @@ def logistic_regression(data_type, model_name):
     else:
         raise Exception('error model name!!!')
 
-    model = MultiTaskModel(feature_num, base_model).cuda()
+    model = MultiTaskModel(total_feature_num, cust_feature_num).cuda()
     optimizer = torch.optim.Adam(model.parameters(), lr=5e-3, weight_decay=2e-3)
 
     # Train the model
     num_epochs = 10000
-    train_input, train_responded = train_input.requires_grad_(), train_responded.requires_grad_()
+    train_input, train_cust, train_responded = train_input.requires_grad_(), train_cust.requires_grad_(), train_responded.requires_grad_()
 
     # Start Train
     for epoch in range(1, num_epochs + 1):
-        train_pred_responded, train_pred_profit = model(train_input)
+        train_pred_responded, train_pred_profit = model(train_input, train_cust)
         loss, responded_loss, profit_loss, final_profit_loss = multi_task_loss(train_pred_responded, train_pred_profit, train_responded, train_profit)
 
         if epoch % 100 == 0:
@@ -310,9 +326,9 @@ def logistic_regression(data_type, model_name):
         optimizer.step()
 
     print('Train:')
-    compute_result(model, train_input, train_responded, train_profit, train_recommend)
+    compute_result(model, train_input, train_cust, train_responded, train_profit, train_recommend)
     print('Val:')
-    compute_result(model, val_input, val_responded, val_profit, val_recommend)
+    compute_result(model, val_input, val_cust, val_responded, val_profit, val_recommend)
 
 
 def main():
