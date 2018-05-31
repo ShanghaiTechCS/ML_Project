@@ -294,7 +294,7 @@ def final_new_data(src_data_path, feature_standard_weight_list_path):
     target_name_list = title_list[-2:]
     feat_name_list = title_list[:-2]
 
-    data_array = np.array(data_list[1:])  # (N, F+2)
+    data_array = np.array(data_list[1:]).astype(np.float)  # (N, F+2)
     input_data = data_array[:, :-2]  # str [N, F]
     target_data = data_array[:, -2:]  # str [N, 2]
 

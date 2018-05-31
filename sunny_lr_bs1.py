@@ -73,6 +73,8 @@ def load_data(data_path, use_tensor=False, use_cuda=False):
     val_input, val_target = data_package['val_input'], data_package['val_target']
 
     train_responded, train_profit = train_target[:, 0], train_target[:, 1]
+    print(train_profit)
+
     train_recommend = (train_responded == 1) * (train_profit > 30)
 
     val_responded, val_profit = val_target[:, 0], val_target[:, 1]
@@ -182,7 +184,7 @@ class LR(nn.Module):
         return x
 
 
-def logistic_regression(data_type, balance_data=False, model_name='MLR4'):
+def logistic_regression(data_type, balance_data=False, model_name='LR'):
     """
     :param data_type: 'zero', 'average', 'sample'
     :param balance_data: bool
@@ -190,7 +192,7 @@ def logistic_regression(data_type, balance_data=False, model_name='MLR4'):
     :return:
     """
     # load data
-    train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('data/%s/train.data' % data_type, use_tensor=True,
+    train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('new_data/train.data', use_tensor=True,
                                                                                                  use_cuda=True)
     total_train_num, feature_num = train_input.size()
 
@@ -252,7 +254,7 @@ def logistic_regression(data_type, balance_data=False, model_name='MLR4'):
 
 
 def main():
-    logistic_regression(data_type='sample', balance_data=False, model_name='MLR4')
+    logistic_regression(data_type='sample', balance_data=False, model_name='LR')
 
 
 if __name__ == '__main__':
