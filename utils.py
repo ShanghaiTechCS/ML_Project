@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sklearn as sk
 import pandas as pd
-
+from sklearn.metrics import confusion_matrix
 
 def plot_figure(training, validation, start, stop, num_point, name=None, ylabel=None, legend=None):
     x = np.linspace(start=start, stop=stop, num=num_point)
@@ -30,7 +30,7 @@ def calculate_profit(val_gt_profit, val_cls_pred, val_cls_gt):
     return profit
 
 
-def plot_figure(train_data, val_data, start, stop, num_point, legends, xlabels, ylabels, save_path):
+def plot_figure2(train_data, val_data, start, stop, num_point, legends, xlabels, ylabels, save_path):
     """
     Plot the training and validation figure in this files.
     """
@@ -91,3 +91,13 @@ def recall_cls(cls_pred, cls_gt):
 
     return total_recall, rec_recall
 
+def confusion_matrix_compute(cls_pred, cls_gt):
+
+    total_acc = np.array(cls_pred == cls_gt, dtype=np.float32).mean()
+
+    tn, fp, fn, tp = confusion_matrix(cls_gt, cls_pred).ravel()
+
+    pos_acc = tp/float(fn+tp)
+    neg_acc = tn/float(tn+fp)
+
+    return total_acc, pos_acc, neg_acc

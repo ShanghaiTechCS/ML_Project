@@ -25,6 +25,7 @@ def dataloder(path=None, split_ratio=0.8):
                  'cons.conf.idx', 'euribor3m', 'nr.employed', 'pastEmail']
 
     path = osp.join(path, 'train.data')
+
     data = np.load(path)
 
     responded_input = data['responded_input']

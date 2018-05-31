@@ -178,9 +178,8 @@ def cls_responsed(data_dict):
 
 def main():
 
-    data_dict = dataloder(path='./data/zero', split_ratio=0.8)
-    # cls_responsed(data_dict=data_dict)
-    reg_profit(data_dict=data_dict)
+    data_dict = dataloder(path='./new_data/zero', split_ratio=0.8)
+    cls_responsed(data_dict=data_dict)
 
 if __name__ == '__main__':
     np.random.seed(19)
