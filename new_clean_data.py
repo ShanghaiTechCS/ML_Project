@@ -115,12 +115,12 @@ def count_NA_data(src_data_path):
 
     sample_num, feature_num = feature_array.shape
     for i in range(feature_num):
-        print(feature_attr_list[i], 'NA:', np.sum(feature_array[:, i] == 'NA'), 'unknown:', np.sum(feature_array[:, i] == 'unknown'))
+        print(feature_attr_list[i], np.sum(feature_array[:, i] == 'NA'), np.sum(feature_array[:, i] == 'unknown'))
 
     filled_feat_array = fill_data_by_nearest_neighbor(feature_array, feature_attr_list)
 
     # save
-    with open('new_data/filled_new_DataTraining.csv', 'w') as f:
+    with open('new2_data/filled_new2_DataTraining.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(feature_attr_list)
         writer.writerows(filled_feat_array)
@@ -183,6 +183,7 @@ def fill_data_by_nearest_neighbor(feature_array, feat_name_list):
                     feat_dist_list.append((feat2_idx, dist))
 
             feat_dist_list = sorted(feat_dist_list, key=lambda x: x[1])
+
             na_idx_list = np.argwhere(feat1 == 'NA').reshape(-1).tolist()
             na_idx_set = set(na_idx_list)
 
@@ -251,17 +252,17 @@ def normalization(src_data_path):
     print('input_data shape:', input_data.shape)
     print('target_data shape:', target_data.shape)
 
-    remove_related_feature(input_data, formatted_feature_name_list)
+    # remove_related_feature(input_data, formatted_feature_name_list)
 
     total_data = np.concatenate((input_data, target_data), axis=1)
 
     # save
-    with open('new_data/normalized_filled_new_DataTraining.csv', 'w') as f:
+    with open('new2_data/normalized_filled_new2_DataTraining.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(formatted_feature_name_list + target_attr_list)
         writer.writerows(total_data)
 
-    with open('new_data/feature_standard_weight_list.pkl', 'wb') as f:
+    with open('new2_data/feature_standard_weight_list.pkl', 'wb') as f:
         pickle.dump(feature_standard_weight_list, f)
 
 
@@ -333,7 +334,7 @@ def final_new_data(src_data_path, feature_standard_weight_list_path):
             print('%s: %s' % (k, v.shape))
 
     # save in pkl
-    with open('new_data/train.data', 'wb') as f:
+    with open('new2_data/train.data', 'wb') as f:
         pickle.dump(data_package, f)
 
 
@@ -355,11 +356,11 @@ def main():
 
     # create_train_val_list('data/train_val_list.json')
 
-    # count_NA_data(src_data_path='new_data/new_DataTraining.csv')
-    # normalization(src_data_path='new_data/filled_new_DataTraining.csv')
+    # count_NA_data(src_data_path='new2_data/new2_DataTraining.csv')
+    # normalization(src_data_path='new2_data/filled_new2_DataTraining.csv')
 
     # update_feature_standard_weight_list()
-    final_new_data('new_data/final_new_DataTraining.csv', 'new_data/feature_standard_weight_list.pkl')
+    final_new_data('new2_data/final_new2_DataTraining.csv', 'new2_data/feature_standard_weight_list.pkl')
     pass
 
 

@@ -13,9 +13,10 @@ import torch.nn.functional as F
 from torch.utils import data
 import torchvision
 import torchvision.transforms as transforms
+from imblearn.over_sampling import SMOTE, ADASYN
 
 
-def class_balanced_cross_entropy_loss(output, label, size_average=True, batch_average=True, use_balance=True):
+def class_balanced_cross_entropy_loss(output, label, size_average=True, batch_average=True, use_balance=False):
     """Define the class balanced cross entropy loss to train the network
     Args:
     output: Output of the network
@@ -162,11 +163,12 @@ class MLR2(nn.Module):
         super(MLR2, self).__init__()
         self.feature_num = feature_num
 
-        self.fc1 = nn.Linear(feature_num, 64)
-        self.fc2 = nn.Linear(64, 1)
+        self.fc1 = nn.Linear(feature_num, 32)
+        self.bn1 = nn.BatchNorm1d(32)
+        self.fc2 = nn.Linear(32, 1)
 
     def forward(self, x):
-        x = F.relu(self.fc1(x))
+        x = self.bn1(F.relu(self.fc1(x)))
         x = self.fc2(x)
 
         return x
@@ -194,6 +196,15 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
     # load data
     train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('new_data/train.data', use_tensor=True,
                                                                                                  use_cuda=True)
+
+    balanced_train_input, balanced_train_recommend = SMOTE().fit_sample(train_input.cpu().numpy(), train_recommend.cpu().numpy().reshape(-1))
+    balanced_train_recommend = balanced_train_recommend.reshape(-1, 1)
+
+    balanced_train_input = torch.from_numpy(balanced_train_input.astype(np.float32)).cuda()
+    balanced_train_recommend = torch.from_numpy(balanced_train_recommend.astype(np.float32)).cuda()
+
+    print(balanced_train_input.shape)
+    print(balanced_train_recommend.shape)
     total_train_num, feature_num = train_input.size()
 
     if model_name == 'MLR4':
@@ -206,12 +217,13 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
         raise Exception('error model name!!!')
 
     criterion = class_balanced_cross_entropy_loss
-    # optimizer = torch.optim.SGD(model.parameters(), lr=2e-2, weight_decay=1e-2)
-    optimizer = torch.optim.Adam(model.parameters(), lr=5e-3, weight_decay=2e-3)
+    # optimizer = torch.optim.SGD(model.parameters(), lr=1e-1, weight_decay=1e-2)
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-2, weight_decay=2e-3)
 
     # Train the model
     num_epochs = 10000
-    train_input, train_recommend = train_input.requires_grad_(), train_recommend.requires_grad_()
+    balanced_train_input = balanced_train_input.requires_grad_()
+    balanced_train_recommend = balanced_train_recommend.requires_grad_()
 
     if balance_data:
         batch_num = int(train_recommend.sum().item())
@@ -238,8 +250,8 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
         # Start Train
         for epoch in range(1, num_epochs + 1):
 
-            train_pred_recommend = model(train_input)
-            loss = criterion(train_pred_recommend, train_recommend)
+            train_pred_recommend = model(balanced_train_input)
+            loss = criterion(train_pred_recommend, balanced_train_recommend)
             if epoch % 100 == 0:
                 print('[%d/%d]: loss: %.9f' % (epoch, num_epochs, loss.item()))
 
@@ -253,8 +265,36 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
     compute_result(model, criterion, val_input, val_target, val_recommend)
 
 
+def sklearn_lr():
+    # load data
+    # data_path = 'new_data/train.data'
+    data_path = 'data/sample/train.data'
+    train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data(data_path, use_tensor=False,
+                                                                                                 use_cuda=False)
+
+    balanced_train_input, balanced_train_recommend = ADASYN().fit_sample(train_input, train_recommend.reshape(-1))
+    # balanced_train_input, balanced_train_recommend = train_input, train_recommend.reshape(-1)
+
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.metrics import classification_report
+    from sklearn import svm
+
+    clf_l1_LR = LogisticRegression(C=10, penalty='l2', tol=1e-8, max_iter=10000)
+    # clf_l1_LR = svm.SVC(C=1, tol=1e-8, max_iter=1000000, class_weight='balanced', kernel='poly')
+
+    clf_l1_LR.fit(balanced_train_input, balanced_train_recommend)
+    print(classification_report(balanced_train_recommend, clf_l1_LR.predict(balanced_train_input)))
+
+    pred = clf_l1_LR.predict(val_input)
+
+    print(compute_profit(pred.reshape(-1, 1), val_target))
+
+    print(classification_report(val_recommend.reshape(-1), pred))
+
+
 def main():
-    logistic_regression(data_type='sample', balance_data=False, model_name='LR')
+    # logistic_regression(data_type='sample', balance_data=False, model_name='LR')
+    sklearn_lr()
 
 
 if __name__ == '__main__':
