@@ -8,6 +8,7 @@ import pdb
 import cv2
 import random
 import os.path as osp
+from utils import plot_figure
 
 
 def dataloder(path=None, split_ratio=0.8):
@@ -105,7 +106,7 @@ def reg_profit(data_dict=None):
     score_val_list = []
 
     for c in np.linspace(1e-6, 1000, 100000):
-        regression_pro = Ridge(alpha=c, max_iter=10000000, tol=1e-8)
+        regression_pro = Ridge(alpha=c, max_iter=10000000000, tol=1e-9, solver='auto')
         regression_pro.fit(training_data, training_gt)
         score_train = regression_pro .score(training_data, training_gt)
         score_val = regression_pro .score(val_data, val_gt)
@@ -116,14 +117,8 @@ def reg_profit(data_dict=None):
         print('C=%.3f' % c, 'The val MSE: ', score_val)
 
     x = np.linspace(1e-6, 1000, 100000)
-    plt.figure()
-    plt.plot(x, np.array(score_train_list))
-    plt.plot(x, np.array(score_val_list))
-    plt.xlabel('regularization strength')
-    plt.ylabel('MSE')
-    plt.legend(['training', 'validation'])
-    # plt.show()
-    plt.savefig('./figure/baseline2_reg_profit.png')
+    plot_figure(training=score_train_list, validation=score_val_list, stop=1000, start=1e-6, num_point=100000, ylabel='mse',
+                legend=['training', 'validation'], name='./figure/baseline2_reg_profit.png')
 
 
 def cls_responsed(data_dict):
@@ -142,35 +137,50 @@ def cls_responsed(data_dict):
     score_train_list = []
     score_val_list = []
 
-    for c in np.linspace(1, 100, 100):
+    acc_true_list = []
+    acc_false_list = []
+
+    for c in np.linspace(1e-5, 50, 100):
         svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
+
         svm.fit(training_data, training_gt)
         score_train = svm.score(training_data, training_gt)
         score_val = svm.score(val_data, val_gt)
+        predict = svm.predict(val_data)
+
+        index_true = np.where((val_gt == 1))[0]
+        index_false = np.where((val_gt == 0))[0]
+        acc_true = np.mean(predict[index_true])
+        acc_false = np.mean(1 - predict[index_false])
+        acc_true_list.append(acc_true)
+        acc_false_list.append(acc_false)
+
         score_train_list.append(score_train)
         score_val_list.append(score_val)
         print('C=%.3f' % c, 'The train mean accuracy for SVM: ', score_train)
         print('C=%.3f' % c, 'The val mean accuracy for SVM: ', score_val)
+        print('C=%.3f' % c, 'The val true accuracy for SVM: ', acc_true)
+        print('C=%.3f' % c, 'The val true false accuracy for SVM: ', acc_false)
+        print('------------------------------------------------')
+        print('')
 
-    x = np.linspace(1, 100, 100)
-    plt.figure()
-    plt.plot(x, np.array(score_train_list))
-    plt.plot(x, np.array(score_val_list))
-    plt.xlabel('regularization strength')
-    plt.ylabel('accuracy')
-    plt.legend(['training', 'validation'])
-    plt.savefig('./figure/baseline2_svm_poly.png')
+    score_train_list = np.array(score_train_list)
+    score_val_list = np.array(score_val_list)
+    acc_true_list = np.array(acc_true_list)
+    acc_false_list = np.array(acc_false_list)
 
+    plot_figure(score_train_list, score_val_list, start=1e-5, stop=50, num_point=100,
+                name='./figure/baseline2_svm_poly_2_target.png', ylabel='acc', legend=['training', 'validation'])
 
-def plot_figure():
-    pass
+    plot_figure(acc_false_list, acc_true_list, start=1e-5, stop=50, num_point=100,
+                name='./figure/baseline2_svm_poly_2_recall_target.png', ylabel='acc', legend=['false', 'true'])
 
 
 def main():
-    data_dict = dataloder(path='./data/zero', split_ratio=0.8)
-    # reg_profit(data_dict=data_dict)
-    cls_responsed(data_dict=data_dict)
 
+    data_dict = dataloder(path='./data/zero', split_ratio=0.8)
+    # cls_responsed(data_dict=data_dict)
+    reg_profit(data_dict=data_dict)
 
 if __name__ == '__main__':
     np.random.seed(19)
