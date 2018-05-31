@@ -70,7 +70,7 @@ def baseline1(data_dict=None):
     And the groundtruth is the (responded_target \cap (profit_target>30))
 
     logistic regression
-    data_dict:
+    data_dict: the data format
 
     """
 
@@ -101,7 +101,6 @@ def baseline1(data_dict=None):
     plt.xlabel('regularization strength')
     plt.ylabel('accuracy')
     plt.legend(['training', 'validation'])
-    # plt.show()
     plt.savefig('./figure/baseline1_logR.png')
 
 
@@ -109,9 +108,7 @@ def baseline2(data_dict):
     """
     This baseline can estimate the customer whether responded.
     And the groundtruth is the (responded_target \cap (profit_target>30))
-
     svm
-
     """
 
     training_data = data_dict['training_data']
@@ -125,6 +122,11 @@ def baseline2(data_dict):
     acc_false_list = []
 
     for c in np.linspace(1e-5, 100, 1000):
+
+        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
+
+
+    for c in np.linspace(1, 100, 100):
 
         svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
 
@@ -149,10 +151,21 @@ def baseline2(data_dict):
         print('------------------------------------------------')
         print('')
 
+
     score_train_list = np.array(score_train_list)
     score_val_list = np.array(score_val_list)
     acc_true_list = np.array(acc_true_list)
     acc_false_list = np.array(acc_false_list)
+
+    x = np.linspace(1, 100, 100)
+    plt.figure()
+    plt.plot(x, np.array(score_train_list))
+    plt.plot(x, np.array(score_val_list))
+    plt.xlabel('regularization strength')
+    plt.ylabel('accuracy')
+    plt.legend(['training', 'validation'])
+    # plt.show()
+    plt.savefig('./figure/baseline2_svm_poly.png')
 
     plot_figure(score_train_list, score_val_list, start=1e-5, stop=100, num_point=1000,
                 name='./figure/baseline1_svm_poly_2.png', ylabel='acc', legend=['training', 'validation'])

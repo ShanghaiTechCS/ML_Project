@@ -91,7 +91,7 @@ def dataloder(path=None, split_ratio=0.8):
 def reg_profit(data_dict=None):
     """
     This baseline can estimate the customer whether responded.
-    And the groundtruth is the (responded_target \cap (profit_target>30))
+    And the ground-truth is the (responded_target \cap (profit_target>30))
 
     logistic regression
     data_dict:
