@@ -6,7 +6,7 @@ from sklearn.svm import SVC
 import random
 from utils import recall_cls
 import os.path as osp
-from utils import pure_profit, plot_figure, classification_fusion
+from utils import pure_profit, plot_figure2, classification_fusion, confusion_matrix_compute
 
 
 def dataloder(path=None, split_ratio=0.8, mode=None):
@@ -98,7 +98,7 @@ def reg_profit(data_dict=None):
         score_val_list.append(mse_val)
         print('C=%.3f' % c, 'The train MSE: ', mse_train, 'The val MSE: ', mse_val)
 
-    plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-5, stop=10, num_point=100000,
+    plot_figure2(train_data=score_train_list, val_data=score_val_list, start=1e-5, stop=10, num_point=100000,
                 xlabels='regularization', ylabels='mse', legends=['train', 'val'],
                 save_path='./figure/profit_sample_bs2_mlp_mse.png')
 
@@ -117,40 +117,56 @@ def cls_response(data_dict):
     test_data = data_dict['test_data']
     test_gt = data_dict['test_gt']
 
-    score_train_list = []
+    total_acc_train = []
+    pos_acc_train = []
+    neg_acc_train = []
+
     profit_train_list = []
-    score_val_list = []
     profit_val_list = []
+    total_acc_val = []
+    pos_acc_val = []
+    neg_acc_val = []
+
     print('train_max_profit:', np.maximum(training_gt[:, 1] - 30, 0).sum())
     print('val_max_profit:', np.maximum(val_gt[:, 1] - 30, 0).sum())
     for c in np.linspace(1e-5, 1, 100):
-        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
+        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='rbf')
 
         svm.fit(training_data, training_gt[:, 0])
 
         cls_pred_train = svm.predict(training_data)
         cls_pred_val = svm.predict(val_data)
 
-        total_acc_train, rec_acc_train = recall_cls(cls_pred_train, training_gt[:, 0])
+
         profit_train = pure_profit(cls_pred_train, profit_gt=training_gt[:, 1], cls_gt=None)
-        total_acc_val, rec_acc_val = recall_cls(cls_pred_val, val_gt[:, 0])
+        total_acc_t, pos_acc_t, neg_acc_t = confusion_matrix_compute(cls_gt=training_gt[:, 0], cls_pred=cls_pred_train)
+        total_acc_v, pos_acc_v, neg_acc_v = confusion_matrix_compute(cls_gt=val_gt[:, 0], cls_pred=cls_pred_val)
+
+
         profit_val = pure_profit(cls_pred_val, profit_gt=val_gt[:, 1], cls_gt=None)
 
-        score_train_list.append(total_acc_train)
-        score_val_list.append(total_acc_val)
+        total_acc_train.append(total_acc_t)
+        total_acc_val.append(total_acc_v)
+        pos_acc_train.append(pos_acc_t)
+        pos_acc_val.append(pos_acc_v)
+        neg_acc_train.append(neg_acc_t)
+        neg_acc_val.append(neg_acc_v)
         profit_train_list.append(profit_train)
         profit_val_list.append(profit_val)
 
-        print('c=', c,
-              'total_acc_train: %.3f, rec_acc_train:%.3f, total_acc_val:%.3f, rec_acc_val:%.3f, Profit_train: %.3f, '
-              'Profit_val:%.3f'
-              % (total_acc_train, rec_acc_train, total_acc_val, rec_acc_val, profit_train, profit_val))
-    plot_figure(train_data=score_train_list, val_data=score_val_list, start=1e-5, stop=1, num_point=100,
-                xlabels='regularization', ylabels='loss', legends=['train', 'val'],
-                save_path='./figure/acc_average_bs2_svm.png')
-    plot_figure(train_data=profit_train_list, val_data=profit_val_list, start=1e-5, stop=1, num_point=100,
-                xlabels='regularization', ylabels='profit', legends=['train', 'val'],
-                save_path='./figure/profit_average_bs2_svm.png')
+        print('C=%.3f' % c,
+              'Socre_train: %.3f, Score_val:%.3f, pos_train:%3f,pos_val:%3f,neg_train:%3f,neg_val:%3f,Profit_train: %.3f, Profit_val:%.3f'
+              % (total_acc_t, total_acc_v, pos_acc_t, pos_acc_v, neg_acc_t, neg_acc_v, profit_train, profit_val))
+
+    plot_figure2(train_data=total_acc_train, val_data=total_acc_val, start=1e-5, stop=1, num_point=100,
+                     xlabels='regularization', ylabels='total_acc', legends=['train', 'val'],
+                     save_path='./new_fig/acc_bs1_total_svm_rbf_old_data.png')
+    plot_figure2(train_data=pos_acc_train, val_data=pos_acc_val, start=1e-5, stop=1, num_point=100,
+                     xlabels='regularization', ylabels='Pos_acc', legends=['train', 'val'],
+                     save_path='./new_fig/acc_bs1_pos_svm_rbf_old_data.png')
+    plot_figure2(train_data=profit_train_list, val_data=profit_val_list, start=1e-5, stop=1, num_point=100,
+                     xlabels='regularization', ylabels='profit', legends=['train', 'val'],
+                     save_path='./new_fig/profit_bs1_svm_rbf_old_data.png')
 
 
 def cls_response_mlp(data_dict):
@@ -291,17 +307,17 @@ def baseline2(best_cls_alpha, best_reg_alpha, data_dict):
     profit_val = np.array(profit_val, dtype=np.float32)
     profit_train = np.array(profit_train, dtype=np.float32)
 
-    plot_figure(train_data=profit_train, val_data=profit_val, legends=['train', 'val'], xlabels='threshold', start=5,
+    plot_figure2(train_data=profit_train, val_data=profit_val, legends=['train', 'val'], xlabels='threshold', start=5,
                 stop=195, num_point=34, save_path='./figure/combine_profit_bs2.png', ylabels='profit')
 
 
 def main():
     data_dict = dataloder(path='./data', split_ratio=0.8, mode='sample')
     # reg_profit(data_dict=data_dict)
-    baseline2(best_cls_alpha=0.343, best_reg_alpha=1.8, data_dict=data_dict)
-    # cls_response_mlp(data_dict=data_dict)
-    # regression_mlp(data_dict=data_dict)
-    # cls_response(data_dict)
+    # baseline2(best_cls_alpha=0.343, best_reg_alpha=1.8, data_dict=data_dict)
+    # # cls_response_mlp(data_dict=data_dict)
+    # # regression_mlp(data_dict=data_dict)
+    cls_response(data_dict)
 
 
 if __name__ == '__main__':

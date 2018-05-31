@@ -8,7 +8,7 @@ import pdb
 import cv2
 import random
 import os.path as osp
-
+from utils import plot_figure
 
 def dataloder(path=None, split_ratio=0.8):
     """
@@ -25,6 +25,7 @@ def dataloder(path=None, split_ratio=0.8):
                  'cons.conf.idx', 'euribor3m', 'nr.employed', 'pastEmail']
 
     path = osp.join(path, 'train.data')
+
     data = np.load(path)
 
     responded_input = data['responded_input']
@@ -118,17 +119,44 @@ def baseline2(data_dict):
     score_train_list = []
     score_val_list = []
 
+    acc_true_list = []
+    acc_false_list = []
+
+    for c in np.linspace(1e-5, 100, 1000):
+
+        svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
+
+
     for c in np.linspace(1, 100, 100):
 
         svm = SVC(C=c, tol=0.0000001, max_iter=1000000, class_weight='balanced', kernel='poly')
+
         svm.fit(training_data, training_gt)
         score_train = svm.score(training_data, training_gt)
         score_val = svm.score(val_data, val_gt)
+        predict = svm.predict(val_data)
+
+        index_true = np.where((val_gt == 1))[0]
+        index_false = np.where((val_gt == 0))[0]
+        acc_true = np.mean(predict[index_true])
+        acc_false = np.mean(1 - predict[index_false])
+        acc_true_list.append(acc_true)
+        acc_false_list.append(acc_false)
 
         score_train_list.append(score_train)
         score_val_list.append(score_val)
         print('C=%.3f' % c, 'The train mean accuracy for SVM: ', score_train)
         print('C=%.3f' % c, 'The val mean accuracy for SVM: ', score_val)
+        print('C=%.3f' % c, 'The val true accuracy for SVM: ', acc_true)
+        print('C=%.3f' % c, 'The val true false accuracy for SVM: ', acc_false)
+        print('------------------------------------------------')
+        print('')
+
+
+    score_train_list = np.array(score_train_list)
+    score_val_list = np.array(score_val_list)
+    acc_true_list = np.array(acc_true_list)
+    acc_false_list = np.array(acc_false_list)
 
     x = np.linspace(1, 100, 100)
     plt.figure()
@@ -140,9 +168,11 @@ def baseline2(data_dict):
     # plt.show()
     plt.savefig('./figure/baseline2_svm_poly.png')
 
+    plot_figure(score_train_list, score_val_list, start=1e-5, stop=100, num_point=1000,
+                name='./figure/baseline1_svm_poly_2.png', ylabel='acc', legend=['training', 'validation'])
 
-def plot_figure():
-    pass
+    plot_figure(acc_false_list, acc_true_list, start=1e-5, stop=100, num_point=1000,
+                name='./figure/baseline1_svm_poly_2_recall.png', ylabel='acc', legend=['false', 'true'])
 
 
 def main():
