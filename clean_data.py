@@ -235,10 +235,43 @@ def clean_train_customer(src_data_path, dest_data_path, fill_none='zero'):
         pickle.dump(data_package, f)
 
 
+def count_NA_data(src_data_path):
+    na_list = ['NA', 'unknown']
+
+    with open(src_data_path, 'r') as f:
+        reader = csv.reader(f)
+        data_list = list(reader)
+
+    title_list = data_list[0]
+    target_attr_list = title_list[-3:-1]
+    feature_attr_list = title_list[:-3]
+    feature_attr_list.remove(feature_attr_list[-2])
+
+    print('feature_attr_list:', feature_attr_list)
+    print('target_attr_list:', target_attr_list)
+
+    data_array = np.array(data_list[1:])  # (N, F+2)
+    feature_array = data_array[:, :-3]  # str [N, F]
+    feature_array = np.delete(feature_array, -2, axis=1)  #
+    target_array = data_array[:, -3:-1]  # str [N, 2]
+
+    print('feature_array shape:', feature_array.shape)
+    print('target_array shape:', target_array.shape)
+    print()
+
+    sample_num, feature_num = feature_array.shape
+
+    for i in range(feature_num):
+        print(feature_attr_list[i], 'NA:', np.sum(feature_array[:, i] == 'NA'), 'unknown:', np.sum(feature_array[:, i] == 'unknown'))
+
+
 def main():
-    fill_none = 'sample'
-    clean_train_customer(src_data_path='data/DataTraining.csv', dest_data_path='data/%s/train.data' % fill_none, fill_none=fill_none)
+    # fill_none = 'sample'
+    # clean_train_customer(src_data_path='data/DataTraining.csv', dest_data_path='data/%s/train.data' % fill_none, fill_none=fill_none)
+
     # create_train_val_list('data/train_val_list.json')
+
+    count_NA_data(src_data_path='data/DataTraining.csv')
 
     pass
 
