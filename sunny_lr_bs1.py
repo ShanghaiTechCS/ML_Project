@@ -194,7 +194,7 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
     :return:
     """
     # load data
-    train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('new_data/train.data', use_tensor=True,
+    train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data('new2_data/train.data', use_tensor=True,
                                                                                                  use_cuda=True)
 
     balanced_train_input, balanced_train_recommend = SMOTE().fit_sample(train_input.cpu().numpy(), train_recommend.cpu().numpy().reshape(-1))
@@ -268,7 +268,8 @@ def logistic_regression(data_type, balance_data=False, model_name='LR'):
 def sklearn_lr():
     # load data
     # data_path = 'new_data/train.data'
-    data_path = 'data/sample/train.data'
+    data_path = 'new2_data/train.data'
+    # data_path = 'data/sample/train.data'
     train_input, train_target, train_recommend, val_input, val_target, val_recommend = load_data(data_path, use_tensor=False,
                                                                                                  use_cuda=False)
 
@@ -278,8 +279,9 @@ def sklearn_lr():
     from sklearn.linear_model import LogisticRegression
     from sklearn.metrics import classification_report
     from sklearn import svm
+    from sklearn.metrics import f1_score
 
-    clf_l1_LR = LogisticRegression(C=10, penalty='l2', tol=1e-8, max_iter=10000)
+    clf_l1_LR = LogisticRegression(C=1, penalty='l2', tol=1e-8, max_iter=10000)
     # clf_l1_LR = svm.SVC(C=1, tol=1e-8, max_iter=1000000, class_weight='balanced', kernel='poly')
 
     clf_l1_LR.fit(balanced_train_input, balanced_train_recommend)
@@ -290,7 +292,7 @@ def sklearn_lr():
     print(compute_profit(pred.reshape(-1, 1), val_target))
 
     print(classification_report(val_recommend.reshape(-1), pred))
-
+    print(f1_score(val_recommend.reshape(-1), pred, pos_label=0))
 
 def main():
     # logistic_regression(data_type='sample', balance_data=False, model_name='LR')
