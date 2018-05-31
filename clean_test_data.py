@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# @Time    : 2018/5/31 下午2:12
+# @Time    : 2018/6/1 上午1:51
 # @Author  : Zhixin Piao 
 # @Email   : piaozhx@shanghaitech.edu.cn
 
@@ -65,10 +65,6 @@ def format_attr(attr_array, name, normalization=True):
 
     def deal_str():
         unique_attr_array = np.unique(attr_array)
-
-        if name == 'schooling':
-            print(unique_attr_array)
-            exit()
         formatted_attr_array = []
 
         for unique_attr in unique_attr_array:
@@ -230,11 +226,14 @@ def normalization(src_data_path):
     # formatted feature array
     formatted_feature_array = []
     formatted_feature_name_list = []
-    feature_standard_weight_list = []
     sample_num, feature_num = feature_array.shape
+
+    feat_num_count = 0
     for i in range(feature_num):
-        formatted_attr_array, standard_weight_list = format_attr(feature_array[:, i:i + 1], feature_attr_list[i], normalization=True)  # (N, C)
+        formatted_attr_array = format_attr(feature_array[:, i:i + 1], feature_attr_list[i], normalization=False)  # (N, C)
+
         new_feat_dim = formatted_attr_array.shape[1]
+        feat_num_count += new_feat_dim
 
         if new_feat_dim == 1:
             formatted_feature_name_list.append(feature_attr_list[i])
@@ -242,8 +241,26 @@ def normalization(src_data_path):
             formatted_feature_name_list += ['%s#%d' % (feature_attr_list[i], k) for k in range(new_feat_dim)]
 
         formatted_feature_array.append(formatted_attr_array)
-        feature_standard_weight_list += standard_weight_list
+
+
     formatted_feature_array = np.concatenate(formatted_feature_array, axis=1)  # (N, FF)
+    remove_data_idx = [25, 43, 47]
+    least_idx = list(set(range(formatted_feature_array.shape[1])) - set(remove_data_idx))
+    formatted_feature_array = formatted_feature_array[:,least_idx]
+
+
+    feat_dim = formatted_feature_array.shape[1]
+
+    with open('new_data/feature_standard_weight_list.pkl', 'rb') as f:
+        feature_standard_weight_list = pickle.load(f)
+
+
+    for i in range(feat_dim):
+        if formatted_feature_name_list[i] in attr_type_dict.keys():
+
+            mean, std = feature_standard_weight_list[i]
+            print(formatted_feature_name_list[i], mean, std)
+            formatted_feature_array[:, i] = (formatted_feature_array[:, i] - mean) / std
 
     # formatted target array (just change str to float)
     responded_target = format_attr(target_array[:, 0:1], target_attr_list[0], normalization=False)
@@ -265,9 +282,6 @@ def normalization(src_data_path):
         writer = csv.writer(f)
         writer.writerow(formatted_feature_name_list + target_attr_list)
         writer.writerows(total_data)
-
-    with open('test_data/feature_standard_weight_list.pkl', 'wb') as f:
-        pickle.dump(feature_standard_weight_list, f)
 
 
 def remove_related_feature(input_data, feature_name_list):
@@ -310,26 +324,9 @@ def final_new_data(src_data_path, feature_standard_weight_list_path):
     with open(feature_standard_weight_list_path, 'rb') as f:
         feature_standard_weight_list = pickle.load(f)
 
-    # divide in train set and val set
-    with open('data/train_val_list.json', 'r') as f:
-        train_val_idx = json.load(f)
-        train_idx_list, val_idx_list = train_val_idx['train_idx_list'], train_val_idx['val_idx_list']
 
-    train_input = input_data[train_idx_list, :]
-    train_target = target_data[train_idx_list, :]
 
-    val_input = input_data[val_idx_list, :]
-    val_target = target_data[val_idx_list, :]
-
-    data_package = {'feature_standard_weight_list': feature_standard_weight_list,
-                    'feat_name_list': feat_name_list,
-                    'target_name_list': target_name_list,
-
-                    'train_input': train_input,
-                    'train_target': train_target,
-
-                    'val_input': val_input,
-                    'val_target': val_target}
+    data_package = {'test_input': input_data}
 
     for k, v in data_package.items():
         if isinstance(v, list):
@@ -338,7 +335,7 @@ def final_new_data(src_data_path, feature_standard_weight_list_path):
             print('%s: %s' % (k, v.shape))
 
     # save in pkl
-    with open('new2_data/train.data', 'wb') as f:
+    with open('test_data/train.data', 'wb') as f:
         pickle.dump(data_package, f)
 
 
@@ -362,10 +359,10 @@ def main():
 
     # count_NA_data(src_data_path='test_data/DataPredict.csv')
     # normalization(src_data_path='test_data/filled_DataPredict.csv')
-    normalization(src_data_path='new_data/filled_new_DataTraining.csv')
+    # normalization(src_data_path='new_data/filled_new_DataTraining.csv')
 
     # update_feature_standard_weight_list()
-    # final_new_data('new2_data/final_new2_DataTraining.csv', 'new2_data/feature_standard_weight_list.pkl')
+    final_new_data('test_data/final_DataPredict.csv', 'new_data/feature_standard_weight_list.pkl')
     pass
 
 

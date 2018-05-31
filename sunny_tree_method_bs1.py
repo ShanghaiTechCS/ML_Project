@@ -11,6 +11,10 @@ import lightgbm as lgb
 
 from sklearn import datasets
 from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from imblearn.over_sampling import SMOTE, ADASYN
+from sklearn.metrics import confusion_matrix
+from sklearn import tree
 
 
 def load_data(data_path):
@@ -61,10 +65,15 @@ def compute_accuracy(pred_recommend, gt):
 def normal_DT(data_type):
     def test_param(min_samples_split, max_depth):
         clf = DecisionTreeClassifier(random_state=0, criterion='entropy', min_samples_split=min_samples_split, max_depth=max_depth)
-        clf.fit(train_input, train_recommend)
+        clf.fit(balanced_train_input, balanced_train_recommend)
 
         pred_train_recommend = clf.predict(train_input)
         pred_val_recommend = clf.predict(val_input)
+
+        tn, fp, fn, tp = confusion_matrix(val_recommend, pred_val_recommend).ravel()
+        print(tp, fn)
+        print(fp, tn)
+        print('tpr:', tp / (tp + fn), 'fpr:', fp / (tn + fp))
 
         train_total_precision, train_recommend_recall = compute_accuracy(pred_train_recommend, train_target)
         train_profit = compute_profit(pred_train_recommend, train_target)
@@ -84,7 +93,7 @@ def normal_DT(data_type):
 
         return result
 
-    data_package = load_data('data/%s/train.data' % data_type)
+    data_package = load_data('new_data/train.data')
     train_input, train_target = data_package['train_input'], data_package['train_target']
     val_input, val_target = data_package['val_input'], data_package['val_target']
 
@@ -94,14 +103,23 @@ def normal_DT(data_type):
     val_responded, val_profit = val_target[:, 0], val_target[:, 1]
     val_recommend = (val_responded == 1) * (val_profit > 30)
 
-    val_profit_list = []
-    for min_samples_split in range(5, 100, 5):
-        for max_depth in range(1, 30):
-            result = test_param(min_samples_split, max_depth)
-            val_profit_list.append((result, min_samples_split, max_depth))
+    balanced_train_input, balanced_train_recommend = SMOTE().fit_sample(train_input, train_recommend.reshape(-1))
 
-    val_profit_list = sorted(val_profit_list, key=lambda x: x[0]['val_profit'], reverse=True)
-    print(val_profit_list[0])
+    # val_profit_list = []
+    # for min_samples_split in range(5, 400, 50):
+    #     for max_depth in range(1, 30):
+    #         result = test_param(min_samples_split, max_depth)
+    #         val_profit_list.append((result, min_samples_split, max_depth))
+    #
+    #
+    #
+    #
+    #
+    # val_profit_list = sorted(val_profit_list, key=lambda x: x[0]['val_profit'], reverse=True)
+    # print(val_profit_list[0])
+
+    result = test_param(5, 2)
+    print(result)
 
 
 def lightGBM(data_type):
@@ -162,7 +180,7 @@ def lightGBM(data_type):
         return result
 
     # load or create your dataset
-    data_package = load_data('data/%s/train.data' % data_type)
+    data_package = load_data('new_data/train.data')
     train_input, train_target = data_package['train_input'], data_package['train_target']
     val_input, val_target = data_package['val_input'], data_package['val_target']
 
@@ -190,9 +208,57 @@ def lightGBM(data_type):
     print(val_profit_list[0])
 
 
+def random_forest():
+    def test_param(max_depth):
+        clf = RandomForestClassifier(max_depth=max_depth, random_state=0)
+        clf.fit(balanced_train_input, balanced_train_recommend)
+
+        pred_train_recommend = clf.predict(train_input)
+        pred_val_recommend = clf.predict(val_input)
+
+        train_total_precision, train_recommend_recall = compute_accuracy(pred_train_recommend, train_target)
+        train_profit = compute_profit(pred_train_recommend, train_target)
+
+        val_total_precision, val_recommend_recall = compute_accuracy(pred_val_recommend, val_target)
+        val_profit = compute_profit(pred_val_recommend, val_target)
+
+        print('train_total_precision: %s, train_recommend_recall: %s' % (train_total_precision, train_recommend_recall))
+        print('train_profit: ', train_profit)
+        print('-' * 30)
+
+        print('val_total_precision: %s, val_recommend_recall: %s' % (val_total_precision, val_recommend_recall))
+        print('val_profit: ', val_profit)
+
+        result = {'train_TP': train_total_precision, 'train_RR': train_recommend_recall, 'train_profit': train_profit,
+                  'val_TP': val_total_precision, 'val_RR': val_recommend_recall, 'val_profit': val_profit}
+
+        return result
+
+    data_package = load_data('new2_data/train.data')
+    train_input, train_target = data_package['train_input'], data_package['train_target']
+    val_input, val_target = data_package['val_input'], data_package['val_target']
+
+    train_responded, train_profit = train_target[:, 0], train_target[:, 1]
+    train_recommend = (train_responded == 1) * (train_profit > 30)
+
+    val_responded, val_profit = val_target[:, 0], val_target[:, 1]
+    val_recommend = (val_responded == 1) * (val_profit > 30)
+
+    balanced_train_input, balanced_train_recommend = SMOTE().fit_sample(train_input, train_recommend.reshape(-1))
+
+    val_profit_list = []
+    for max_depth in range(1, 30):
+        result = test_param(max_depth)
+        val_profit_list.append((result, max_depth))
+
+    val_profit_list = sorted(val_profit_list, key=lambda x: x[0]['val_profit'], reverse=True)
+    print(val_profit_list[0])
+
+
 def main():
-    # normal_DT('sample')
-    lightGBM('sample')
+    normal_DT('sample')
+    # lightGBM('sample')
+    # random_forest()
 
 
 if __name__ == '__main__':
